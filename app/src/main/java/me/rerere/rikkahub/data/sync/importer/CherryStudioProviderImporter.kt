@@ -77,6 +77,19 @@ object CherryStudioProviderImporter {
                 models = models,
             )
 
+            "grok", "xai" -> ProviderSetting.Grok(
+                name = name,
+                enabled = enabled,
+                baseUrl = normalizeBaseUrl(
+                    apiHost = apiHost,
+                    suffix = "/v1",
+                    fallback = ProviderSetting.Grok().baseUrl
+                ),
+                apiKey = apiKey,
+                models = models,
+                useResponseApi = true,
+            )
+
             else -> {
                 val useResponseApi = type == "openai-response" || provider["models"]?.jsonArray?.any {
                     it.jsonObjectOrNull?.get("endpoint_type")?.jsonPrimitive?.contentOrNull == "openai-response"
@@ -124,6 +137,7 @@ object CherryStudioProviderImporter {
     private fun importedProviderKey(provider: ProviderSetting): String {
         return when (provider) {
             is ProviderSetting.OpenAI -> "openai|${provider.baseUrl}|${provider.apiKey}"
+            is ProviderSetting.Grok -> "grok|${provider.baseUrl}|${provider.apiKey}"
             is ProviderSetting.Google -> "google|${provider.baseUrl}|${provider.apiKey}"
             is ProviderSetting.Claude -> "claude|${provider.baseUrl}|${provider.apiKey}"
         }

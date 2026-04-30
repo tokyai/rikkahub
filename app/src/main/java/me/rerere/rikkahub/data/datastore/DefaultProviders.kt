@@ -235,14 +235,24 @@ val DEFAULT_PROVIDERS = listOf(
         enabled = false,
         builtIn = true
     ),
-    ProviderSetting.OpenAI(
+    ProviderSetting.Grok(
         id = Uuid.parse("ff3cde7e-0f65-43d7-8fb2-6475c99f5990"),
-        name = "xAI",
+        name = "Grok",
         baseUrl = "https://api.x.ai/v1",
         apiKey = "",
         enabled = false,
         builtIn = true,
         useResponseApi = true,
+        models = listOf(
+            Model(
+                id = Uuid.parse("4a703c00-ff1a-46a2-be20-90215e652dcb"),
+                modelId = "grok-4.20",
+                displayName = "Grok 4.20",
+                inputModalities = listOf(Modality.TEXT, Modality.IMAGE),
+                outputModalities = listOf(Modality.TEXT),
+                abilities = listOf(ModelAbility.TOOL, ModelAbility.REASONING),
+            )
+        )
     ),
     ProviderSetting.OpenAI(
         id = Uuid.parse("53027b08-1b58-43d5-90ed-29173203e3d8"),

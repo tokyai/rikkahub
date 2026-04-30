@@ -102,6 +102,67 @@ sealed class ProviderSetting {
     }
 
     @Serializable
+    @SerialName("grok")
+    data class Grok(
+        override var id: Uuid = Uuid.random(),
+        override var enabled: Boolean = true,
+        override var name: String = "Grok",
+        override var models: List<Model> = emptyList(),
+        override val balanceOption: BalanceOption = BalanceOption(),
+        @Transient override val builtIn: Boolean = false,
+        @Transient override val description: @Composable (() -> Unit) = {},
+        @Transient override val shortDescription: @Composable (() -> Unit) = {},
+        var apiKey: String = "",
+        var baseUrl: String = "https://api.x.ai/v1",
+        var chatCompletionsPath: String = "/chat/completions",
+        var useResponseApi: Boolean = true,
+    ) : ProviderSetting() {
+        override fun addModel(model: Model): ProviderSetting {
+            return copy(models = models + model)
+        }
+
+        override fun editModel(model: Model): ProviderSetting {
+            return copy(models = models.map { if (it.id == model.id) model.copy() else it })
+        }
+
+        override fun delModel(model: Model): ProviderSetting {
+            return copy(models = models.filter { it.id != model.id })
+        }
+
+        override fun moveMove(
+            from: Int,
+            to: Int
+        ): ProviderSetting {
+            return copy(models = models.toMutableList().apply {
+                val model = removeAt(from)
+                add(to, model)
+            })
+        }
+
+        override fun copyProvider(
+            id: Uuid,
+            enabled: Boolean,
+            name: String,
+            models: List<Model>,
+            balanceOption: BalanceOption,
+            builtIn: Boolean,
+            description: @Composable (() -> Unit),
+            shortDescription: @Composable (() -> Unit),
+        ): ProviderSetting {
+            return this.copy(
+                id = id,
+                enabled = enabled,
+                name = name,
+                models = models,
+                builtIn = builtIn,
+                description = description,
+                balanceOption = balanceOption,
+                shortDescription = shortDescription
+            )
+        }
+    }
+
+    @Serializable
     @SerialName("google")
     data class Google(
         override var id: Uuid = Uuid.random(),
@@ -230,6 +291,7 @@ sealed class ProviderSetting {
         val Types by lazy {
             listOf(
                 OpenAI::class,
+                Grok::class,
                 Google::class,
                 Claude::class,
             )

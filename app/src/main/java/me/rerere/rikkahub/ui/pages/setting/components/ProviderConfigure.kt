@@ -2,11 +2,14 @@ package me.rerere.rikkahub.ui.pages.setting.components
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -20,6 +23,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dokar.sonner.ToastType
 import me.rerere.ai.provider.ProviderSetting
@@ -34,6 +39,12 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.reflect.KClass
 
+internal val providerTypeSelectorButtonWidth = 104.dp
+
+internal fun providerTypeSelectorContentWidth(itemCount: Int): Dp {
+    return providerTypeSelectorButtonWidth * itemCount.toFloat()
+}
+
 @Composable
 fun ProviderConfigure(
     provider: ProviderSetting,
@@ -44,27 +55,8 @@ fun ProviderConfigure(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier
     ) {
-        // Type
         if (!provider.builtIn) {
-            SingleChoiceSegmentedButtonRow(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                ProviderSetting.Types.forEachIndexed { index, type ->
-                    SegmentedButton(
-                        shape = SegmentedButtonDefaults.itemShape(
-                            index = index,
-                            count = ProviderSetting.Types.size
-                        ),
-                        label = {
-                            Text(type.simpleName ?: "")
-                        },
-                        selected = provider::class == type,
-                        onClick = {
-                            onEdit(provider.convertTo(type))
-                        }
-                    )
-                }
-            }
+            ProviderTypeSelector(provider = provider, onEdit = onEdit)
         }
 
         // [!] just for debugging
@@ -74,6 +66,10 @@ fun ProviderConfigure(
         when (provider) {
             is ProviderSetting.OpenAI -> {
                 ProviderConfigureOpenAI(provider, onEdit)
+            }
+
+            is ProviderSetting.Grok -> {
+                ProviderConfigureGrok(provider, onEdit)
             }
 
             is ProviderSetting.Google -> {
@@ -87,6 +83,41 @@ fun ProviderConfigure(
     }
 }
 
+@Composable
+private fun ProviderTypeSelector(
+    provider: ProviderSetting,
+    onEdit: (provider: ProviderSetting) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+    ) {
+        SingleChoiceSegmentedButtonRow {
+            ProviderSetting.Types.forEachIndexed { index, type ->
+                SegmentedButton(
+                    modifier = Modifier.width(providerTypeSelectorButtonWidth),
+                    shape = SegmentedButtonDefaults.itemShape(
+                        index = index,
+                        count = ProviderSetting.Types.size
+                    ),
+                    label = {
+                        Text(
+                            text = type.simpleName ?: "",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    selected = provider::class == type,
+                    onClick = {
+                        onEdit(provider.convertTo(type))
+                    }
+                )
+            }
+        }
+    }
+}
+
 fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSetting {
     if (this::class == type) {
         return this
@@ -94,17 +125,20 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
 
     val apiKey = when (this) {
         is ProviderSetting.OpenAI -> this.apiKey
+        is ProviderSetting.Grok -> this.apiKey
         is ProviderSetting.Google -> this.apiKey
         is ProviderSetting.Claude -> this.apiKey
     }
 
     val sourceBaseUrl = when (this) {
         is ProviderSetting.OpenAI -> this.baseUrl
+        is ProviderSetting.Grok -> this.baseUrl
         is ProviderSetting.Google -> this.baseUrl
         is ProviderSetting.Claude -> this.baseUrl
     }
     val targetDefaultBaseUrl = when (type) {
         ProviderSetting.OpenAI::class -> ProviderSetting.OpenAI().baseUrl
+        ProviderSetting.Grok::class -> ProviderSetting.Grok().baseUrl
         ProviderSetting.Google::class -> ProviderSetting.Google().baseUrl
         ProviderSetting.Claude::class -> ProviderSetting.Claude().baseUrl
         else -> error("Unsupported provider type: $type")
@@ -113,6 +147,19 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
 
     return when (type) {
         ProviderSetting.OpenAI::class -> ProviderSetting.OpenAI(
+            id = this.id,
+            enabled = this.enabled,
+            name = this.name,
+            models = this.models,
+            balanceOption = this.balanceOption,
+            builtIn = this.builtIn,
+            description = this.description,
+            shortDescription = this.shortDescription,
+            apiKey = apiKey,
+            baseUrl = convertedBaseUrl
+        )
+
+        ProviderSetting.Grok::class -> ProviderSetting.Grok(
             id = this.id,
             enabled = this.enabled,
             name = this.name,
@@ -160,6 +207,7 @@ internal fun ProviderSetting.defaultBaseUrlForReset(): String {
     if (defaultProvider != null) {
         when (this) {
             is ProviderSetting.OpenAI -> if (defaultProvider is ProviderSetting.OpenAI) return defaultProvider.baseUrl
+            is ProviderSetting.Grok -> if (defaultProvider is ProviderSetting.Grok) return defaultProvider.baseUrl
             is ProviderSetting.Google -> if (defaultProvider is ProviderSetting.Google) return defaultProvider.baseUrl
             is ProviderSetting.Claude -> if (defaultProvider is ProviderSetting.Claude) return defaultProvider.baseUrl
         }
@@ -167,6 +215,7 @@ internal fun ProviderSetting.defaultBaseUrlForReset(): String {
 
     return when (this) {
         is ProviderSetting.OpenAI -> ProviderSetting.OpenAI().baseUrl
+        is ProviderSetting.Grok -> ProviderSetting.Grok().baseUrl
         is ProviderSetting.Google -> ProviderSetting.Google().baseUrl
         is ProviderSetting.Claude -> ProviderSetting.Claude().baseUrl
     }
@@ -176,6 +225,7 @@ internal fun ProviderSetting.resetBaseUrlToDefault(): ProviderSetting {
     val defaultBaseUrl = defaultBaseUrlForReset()
     return when (this) {
         is ProviderSetting.OpenAI -> this.copy(baseUrl = defaultBaseUrl)
+        is ProviderSetting.Grok -> this.copy(baseUrl = defaultBaseUrl)
         is ProviderSetting.Google -> this.copy(baseUrl = defaultBaseUrl)
         is ProviderSetting.Claude -> this.copy(baseUrl = defaultBaseUrl)
     }
@@ -184,6 +234,7 @@ internal fun ProviderSetting.resetBaseUrlToDefault(): ProviderSetting {
 internal fun ProviderSetting.isUsingDefaultBaseUrl(): Boolean {
     val baseUrl = when (this) {
         is ProviderSetting.OpenAI -> this.baseUrl
+        is ProviderSetting.Grok -> this.baseUrl
         is ProviderSetting.Google -> this.baseUrl
         is ProviderSetting.Claude -> this.baseUrl
     }
@@ -231,14 +282,20 @@ private fun String.normalizePath(): String {
 private fun String.isValidBaseUrl(): Boolean = this.toHttpUrlOrNull() != null
 
 private const val OPENAI_OFFICIAL_HOST = "api.openai.com"
+private const val GROK_OFFICIAL_HOST = "api.x.ai"
 private const val GOOGLE_OFFICIAL_HOST = "generativelanguage.googleapis.com"
 private const val CLAUDE_OFFICIAL_HOST = "api.anthropic.com"
 private const val V1_SUFFIX = "/v1"
 private const val V1_BETA_SUFFIX = "/v1beta"
 private val OFFICIAL_PROVIDER_HOSTS = setOf(
     OPENAI_OFFICIAL_HOST,
+    GROK_OFFICIAL_HOST,
     GOOGLE_OFFICIAL_HOST,
     CLAUDE_OFFICIAL_HOST
+)
+private val RESPONSE_API_SUPPORTED_HOSTS = setOf(
+    OPENAI_OFFICIAL_HOST,
+    GROK_OFFICIAL_HOST
 )
 
 @Composable
@@ -321,7 +378,98 @@ private fun ColumnScope.ProviderConfigureOpenAI(
             onCheckedChange = {
                 onEdit(provider.copy(useResponseApi = it))
 
-                if (it && provider.baseUrl.toHttpUrlOrNull()?.host != "api.openai.com") {
+                if (it && provider.baseUrl.toHttpUrlOrNull()?.host !in RESPONSE_API_SUPPORTED_HOSTS) {
+                    toaster.show(
+                        message = responseAPIWarning,
+                        type = ToastType.Warning
+                    )
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun ColumnScope.ProviderConfigureGrok(
+    provider: ProviderSetting.Grok,
+    onEdit: (provider: ProviderSetting.Grok) -> Unit
+) {
+    val toaster = LocalToaster.current
+
+    provider.description()
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(stringResource(id = R.string.setting_provider_page_enable), modifier = Modifier.weight(1f))
+        Checkbox(
+            checked = provider.enabled,
+            onCheckedChange = {
+                onEdit(provider.copy(enabled = it))
+            }
+        )
+    }
+
+    OutlinedTextField(
+        value = provider.name,
+        onValueChange = {
+            onEdit(provider.copy(name = it.trim()))
+        },
+        label = {
+            Text(stringResource(id = R.string.setting_provider_page_name))
+        },
+        modifier = Modifier.fillMaxWidth(),
+    )
+
+    OutlinedTextField(
+        value = provider.apiKey,
+        onValueChange = {
+            onEdit(provider.copy(apiKey = it.trim()))
+        },
+        label = {
+            Text(stringResource(id = R.string.setting_provider_page_api_key))
+        },
+        modifier = Modifier.fillMaxWidth(),
+        maxLines = 3,
+    )
+
+    OutlinedTextField(
+        value = provider.baseUrl,
+        onValueChange = {
+            onEdit(provider.copy(baseUrl = it.trim()))
+        },
+        label = {
+            Text(stringResource(id = R.string.setting_provider_page_api_base_url))
+        },
+        modifier = Modifier.fillMaxWidth(),
+        isError = provider.baseUrl.isNotBlank() && !provider.baseUrl.isValidBaseUrl()
+    )
+
+    if (!provider.useResponseApi) {
+        OutlinedTextField(
+            value = provider.chatCompletionsPath,
+            onValueChange = {
+                onEdit(provider.copy(chatCompletionsPath = it.trim()))
+            },
+            label = {
+                Text(stringResource(id = R.string.setting_provider_page_api_path))
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !provider.builtIn
+        )
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(stringResource(id = R.string.setting_provider_page_response_api), modifier = Modifier.weight(1f))
+        val responseAPIWarning = stringResource(id = R.string.setting_provider_page_response_api_warning)
+        Checkbox(
+            checked = provider.useResponseApi,
+            onCheckedChange = {
+                onEdit(provider.copy(useResponseApi = it))
+
+                if (it && provider.baseUrl.toHttpUrlOrNull()?.host !in RESPONSE_API_SUPPORTED_HOSTS) {
                     toaster.show(
                         message = responseAPIWarning,
                         type = ToastType.Warning

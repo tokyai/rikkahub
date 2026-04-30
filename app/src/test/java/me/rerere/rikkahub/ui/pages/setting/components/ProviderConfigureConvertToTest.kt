@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting.components
 
+import androidx.compose.ui.unit.dp
 import me.rerere.ai.provider.BalanceOption
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
@@ -11,6 +12,14 @@ import org.junit.Test
 import kotlin.uuid.Uuid
 
 class ProviderConfigureConvertToTest {
+    @Test
+    fun `provider type selector should use fixed width items on compact dialogs`() {
+        val totalWidth = providerTypeSelectorContentWidth(ProviderSetting.Types.size)
+
+        assertEquals(104.dp, providerTypeSelectorButtonWidth)
+        assertTrue(totalWidth > 320.dp)
+    }
+
     @Test
     fun `convertTo should keep common fields and switch official endpoint to target default`() {
         val model = Model(
@@ -82,6 +91,38 @@ class ProviderConfigureConvertToTest {
 
         val converted = original.convertTo(ProviderSetting.Claude::class) as ProviderSetting.Claude
         assertEquals("https://gateway.example.com/proxy/v1", converted.baseUrl)
+        assertEquals("gateway.example.com", converted.baseUrl.toHttpUrlOrNull()?.host)
+    }
+
+    @Test
+    fun `convertTo should switch official endpoints to grok default`() {
+        val original = ProviderSetting.OpenAI(
+            name = "Official OpenAI",
+            apiKey = "shared-key",
+            baseUrl = "https://api.openai.com/v1"
+        )
+
+        val converted = original.convertTo(ProviderSetting.Grok::class) as ProviderSetting.Grok
+
+        assertEquals(original.id, converted.id)
+        assertEquals(original.enabled, converted.enabled)
+        assertEquals(original.name, converted.name)
+        assertEquals(original.apiKey, converted.apiKey)
+        assertEquals("https://api.x.ai/v1", converted.baseUrl)
+        assertEquals("/chat/completions", converted.chatCompletionsPath)
+        assertTrue(converted.useResponseApi)
+    }
+
+    @Test
+    fun `convertTo should preserve third-party host when switching from grok`() {
+        val original = ProviderSetting.Grok(
+            name = "Proxy Grok",
+            apiKey = "proxy-key",
+            baseUrl = "https://gateway.example.com/xai/v1"
+        )
+
+        val converted = original.convertTo(ProviderSetting.Google::class) as ProviderSetting.Google
+        assertEquals("https://gateway.example.com/xai/v1beta", converted.baseUrl)
         assertEquals("gateway.example.com", converted.baseUrl.toHttpUrlOrNull()?.host)
     }
 

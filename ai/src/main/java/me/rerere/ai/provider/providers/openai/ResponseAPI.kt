@@ -204,7 +204,7 @@ class ResponseAPI(
             if (params.maxTokens != null) put("max_output_tokens", params.maxTokens)
 
             // system instructions
-            if (messages.any { it.role == MessageRole.SYSTEM }) {
+            if (capabilities.supportsInstructions && messages.any { it.role == MessageRole.SYSTEM }) {
                 val parts = messages.first { it.role == MessageRole.SYSTEM }.parts
                 put(
                     "instructions",
@@ -212,7 +212,7 @@ class ResponseAPI(
             }
 
             // messages
-            put("input", buildMessages(messages))
+            put("input", buildMessages(messages, includeSystem = !capabilities.supportsInstructions))
 
             // reasoning
             if (params.model.abilities.contains(ModelAbility.REASONING)) {
@@ -276,9 +276,12 @@ class ResponseAPI(
         }.mergeCustomBody(params.customBody)
     }
 
-    internal fun buildMessages(messages: List<UIMessage>) = buildJsonArray {
+    internal fun buildMessages(
+        messages: List<UIMessage>,
+        includeSystem: Boolean = false
+    ) = buildJsonArray {
         messages
-            .filter { it.isValidToUpload() && it.role != MessageRole.SYSTEM }
+            .filter { it.isValidToUpload() && (includeSystem || it.role != MessageRole.SYSTEM) }
             .forEach { message ->
                 if (message.role == MessageRole.ASSISTANT) {
                     addAssistantItems(message)
@@ -763,11 +766,16 @@ private fun List<UIMessagePart>.isOnlyTextPart(): Boolean {
 
 internal data class ResponseProviderCapabilities(
     val supportsReasoningSummary: Boolean = true,
-    val supportEncryptedContent: Boolean = true
+    val supportEncryptedContent: Boolean = true,
+    val supportsInstructions: Boolean = true
 )
 
 internal fun resolveResponseProviderCapabilities(host: String): ResponseProviderCapabilities {
     return when (host) {
+        "api.x.ai" -> ResponseProviderCapabilities(
+            supportsInstructions = false
+        )
+
         "ark.cn-beijing.volces.com" -> ResponseProviderCapabilities(
             supportsReasoningSummary = false,
             supportEncryptedContent = false

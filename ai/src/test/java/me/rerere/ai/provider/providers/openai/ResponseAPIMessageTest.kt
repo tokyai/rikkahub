@@ -340,6 +340,32 @@ class ResponseAPIMessageTest {
     }
 
     @Test
+    fun `xai response api should not use instructions parameter`() {
+        val providerSetting = ProviderSetting.OpenAI(
+            baseUrl = "https://api.x.ai/v1"
+        )
+        val requestBody = api.buildRequestBody(
+            providerSetting = providerSetting,
+            messages = listOf(
+                UIMessage.system("You are Grok."),
+                UIMessage.user("hello")
+            ),
+            params = TextGenerationParams(
+                model = Model(
+                    modelId = "grok-4.20",
+                    displayName = "Grok 4.20"
+                )
+            ),
+            stream = false
+        )
+
+        assertFalse(requestBody.containsKey("instructions"))
+        val input = requestBody["input"]!!.jsonArray
+        assertEquals("system", input[0].jsonObject["role"]?.jsonPrimitive?.content)
+        assertEquals("user", input[1].jsonObject["role"]?.jsonPrimitive?.content)
+    }
+
+    @Test
     fun `volc response api should keep reasoning effort when non auto`() {
         val providerSetting = ProviderSetting.OpenAI(
             baseUrl = "https://ark.cn-beijing.volces.com/api/v3"

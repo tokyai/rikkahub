@@ -163,6 +163,44 @@ class BackupVM(
                         )
                     )
                 }
+                (providers["grok"] ?: providers["xai"])?.jsonObject?.let { grok ->
+                    val apiHost = grok["apiHost"]?.jsonPrimitive?.contentOrNull ?: "https://api.x.ai"
+                    val apiKey = grok["apiKey"]?.jsonPrimitive?.contentOrNull ?: ""
+                    val models = grok["models"]?.jsonArray?.map { element ->
+                        val modelId = element.jsonObject["modelId"]?.jsonPrimitive?.contentOrNull ?: ""
+                        val capabilities =
+                            element.jsonObject["capabilities"]?.jsonArray?.map { it.jsonPrimitive.contentOrNull }
+                                ?: emptyList()
+                        Model(
+                            modelId = modelId,
+                            displayName = modelId,
+                            inputModalities = buildList {
+                                add(Modality.TEXT)
+                                if (capabilities.contains("vision")) {
+                                    add(Modality.IMAGE)
+                                }
+                            },
+                            outputModalities = listOf(Modality.TEXT),
+                            abilities = buildList {
+                                if (capabilities.contains("tool_use")) {
+                                    add(ModelAbility.TOOL)
+                                }
+                                if (capabilities.contains("reasoning")) {
+                                    add(ModelAbility.REASONING)
+                                }
+                            }
+                        )
+                    } ?: emptyList()
+                    if (apiKey.isNotBlank()) importProviders.add(
+                        ProviderSetting.Grok(
+                            name = "Grok",
+                            baseUrl = "$apiHost/v1",
+                            apiKey = apiKey,
+                            models = models,
+                            useResponseApi = true,
+                        )
+                    )
+                }
             }
         }
 

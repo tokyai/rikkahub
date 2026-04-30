@@ -23,4 +23,20 @@ class DefaultProvidersTest {
         assertEquals("/credits", provider.balanceOption.apiPath)
         assertEquals("balance", provider.balanceOption.resultPath)
     }
+
+    @Test
+    fun `default providers should include grok as dedicated provider`() {
+        val grokProviders = DEFAULT_PROVIDERS
+            .filterIsInstance<ProviderSetting.Grok>()
+            .filter { it.name == "Grok" }
+
+        assertEquals(1, grokProviders.size)
+
+        val provider = grokProviders.single()
+        assertEquals("https://api.x.ai/v1", provider.baseUrl)
+        assertFalse(provider.enabled)
+        assertTrue(provider.builtIn)
+        assertTrue(provider.useResponseApi)
+        assertTrue(provider.models.any { it.modelId == "grok-4.20" })
+    }
 }

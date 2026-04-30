@@ -92,6 +92,31 @@ class ShareSheetTest {
     }
 
     @Test
+    fun `decode should restore Grok provider correctly`() {
+        val originalId = Uuid.random()
+        val original = ProviderSetting.Grok(
+            id = originalId,
+            enabled = true,
+            name = "Test Grok",
+            models = emptyList(),
+            apiKey = "xai-test-key",
+            baseUrl = "https://api.x.ai/v1",
+            useResponseApi = true
+        )
+
+        val encoded = original.encodeForShare()
+        val decoded = decodeProviderSetting(encoded)
+
+        assertTrue(decoded is ProviderSetting.Grok)
+        val decodedGrok = decoded as ProviderSetting.Grok
+        assertEquals(originalId, decodedGrok.id)
+        assertEquals("Test Grok", decodedGrok.name)
+        assertEquals("xai-test-key", decodedGrok.apiKey)
+        assertEquals("https://api.x.ai/v1", decodedGrok.baseUrl)
+        assertEquals(true, decodedGrok.useResponseApi)
+    }
+
+    @Test
     fun `decode should handle balance option`() {
         val original = ProviderSetting.OpenAI(
             id = Uuid.random(),
@@ -147,6 +172,10 @@ class ShareSheetTest {
             ProviderSetting.Claude(
                 name = "Claude Test",
                 apiKey = "key3"
+            ),
+            ProviderSetting.Grok(
+                name = "Grok Test",
+                apiKey = "key4"
             )
         )
 

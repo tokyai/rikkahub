@@ -11,7 +11,7 @@ class RequestLoggingInterceptor : Interceptor {
         val request = chain.request()
         val startTime = System.currentTimeMillis()
 
-        val requestHeaders = request.headers.toMap()
+        val requestHeaders = request.headers.toRedactedMap()
         val requestBody = request.body?.let { body ->
             val buffer = Buffer()
             body.writeTo(buffer)
@@ -58,7 +58,21 @@ class RequestLoggingInterceptor : Interceptor {
         return response
     }
 
-    private fun okhttp3.Headers.toMap(): Map<String, String> {
-        return names().associateWith { get(it) ?: "" }
+    private fun okhttp3.Headers.toRedactedMap(): Map<String, String> {
+        return names().associateWith { name ->
+            if (name.isSensitiveHeader()) {
+                "<redacted>"
+            } else {
+                get(name) ?: ""
+            }
+        }
+    }
+
+    private fun String.isSensitiveHeader(): Boolean {
+        return equals("Authorization", ignoreCase = true) ||
+            equals("Proxy-Authorization", ignoreCase = true) ||
+            equals("X-Api-Key", ignoreCase = true) ||
+            equals("X-Goog-Api-Key", ignoreCase = true) ||
+            equals("Api-Key", ignoreCase = true)
     }
 }

@@ -1,9 +1,11 @@
 package me.rerere.ai.provider.providers.openai
 
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArrayBuilder
 import kotlinx.serialization.json.JsonObject
@@ -88,11 +90,11 @@ class ResponseAPI(
         Log.i(TAG, "generateText: ${json.encodeToString(requestBody)}")
 
         val response = client.newCall(request).await()
+        val bodyStr = response.readBodyStringOnIo()
         if (!response.isSuccessful) {
-            throw Exception("Failed to get response: ${response.code} ${response.body.string()}")
+            throw Exception("Failed to get response: ${response.code} $bodyStr")
         }
 
-        val bodyStr = response.body?.string() ?: ""
         Log.i(TAG, "generateText: $bodyStr")
         val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
         val output = parseResponseOutput(bodyJson)
@@ -752,6 +754,10 @@ class ResponseAPI(
                 ?: 0
         )
     }
+}
+
+internal suspend fun Response.readBodyStringOnIo(): String = withContext(Dispatchers.IO) {
+    body.string()
 }
 
 private fun isModelAllowTemperature(model: Model): Boolean {

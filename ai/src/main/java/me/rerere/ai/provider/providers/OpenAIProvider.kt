@@ -1,9 +1,11 @@
 package me.rerere.ai.provider.providers
 
 import android.content.Context
+import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
@@ -233,17 +235,37 @@ class OpenAIProvider(
         val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
         val data = bodyJson["data"]?.jsonArray ?: error("No data in response")
 
-        val items = data.map { imageJson ->
-            val imageObj = imageJson.jsonObject
-            val b64Json = imageObj["b64_json"]?.jsonPrimitive?.contentOrNull
-                ?: error("No b64_json in response")
-
-            ImageGenerationItem(
-                data = b64Json,
-                mimeType = "image/png"
-            )
+        val items = parseImageGenerationItems(data) { imageUrl ->
+            val imageRequest = Request.Builder()
+                .url(imageUrl)
+                .get()
+                .build()
+            client.newCall(imageRequest).await().use { imageResponse ->
+                if (!imageResponse.isSuccessful) {
+                    error("Failed to download generated image: ${imageResponse.code} ${imageResponse.body.string()}")
+                }
+                val bytes = imageResponse.body.bytes()
+                Base64.encodeToString(bytes, Base64.NO_WRAP)
+            }
         }
 
         ImageGenerationResult(items = items)
+    }
+}
+
+internal suspend fun parseImageGenerationItems(
+    data: JsonArray,
+    fetchUrlAsBase64: suspend (String) -> String,
+): List<ImageGenerationItem> {
+    return data.map { imageJson ->
+        val imageObj = imageJson.jsonObject
+        val b64Json = imageObj["b64_json"]?.jsonPrimitive?.contentOrNull
+        val url = imageObj["url"]?.jsonPrimitive?.contentOrNull
+
+        ImageGenerationItem(
+            data = b64Json ?: url?.let { fetchUrlAsBase64(it) }
+                ?: error("No b64_json or url in response"),
+            mimeType = "image/png"
+        )
     }
 }

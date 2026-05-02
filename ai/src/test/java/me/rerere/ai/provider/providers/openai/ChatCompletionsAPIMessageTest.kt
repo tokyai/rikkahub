@@ -11,9 +11,11 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.util.KeyRoulette
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 
 /**
  * Unit tests for ChatCompletionsAPI message building logic.
@@ -111,6 +113,13 @@ class ChatCompletionsAPIMessageTest {
             content?.jsonPrimitive?.content?.contains("final answer") == true ||
             (content is JsonArray && content.any { it.jsonObject["text"]?.jsonPrimitive?.content?.contains("final answer") == true })
         )
+    }
+
+    @Test
+    fun `normal stream cancellation after done should not be handled as failure`() {
+        assertTrue(shouldIgnoreStreamFailure(IOException("canceled"), completedNormally = true))
+        assertFalse(shouldIgnoreStreamFailure(IOException("canceled"), completedNormally = false))
+        assertFalse(shouldIgnoreStreamFailure(IOException("timeout"), completedNormally = true))
     }
 
     @Test

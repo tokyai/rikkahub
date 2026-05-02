@@ -59,6 +59,8 @@ import okhttp3.Response
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
+import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Clock
 
 private const val TAG = "ChatCompletionsAPI"
@@ -150,6 +152,7 @@ class ChatCompletionsAPI(
         // just for debugging response body
         // println(client.newCall(request).await().body?.string())
 
+        val completedNormally = AtomicBoolean(false)
         val listener = object : EventSourceListener() {
             override fun onEvent(
                 eventSource: EventSource,
@@ -159,6 +162,7 @@ class ChatCompletionsAPI(
             ) {
                 if (data == "[DONE]") {
                     println("[onEvent] (done) 结束流: $data")
+                    completedNormally.set(true)
                     close()
                     return
                 }
@@ -209,6 +213,9 @@ class ChatCompletionsAPI(
             }
 
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
+                if (shouldIgnoreStreamFailure(t, completedNormally.get())) {
+                    return
+                }
                 var exception = t
 
                 t?.printStackTrace()
@@ -232,6 +239,7 @@ class ChatCompletionsAPI(
             }
 
             override fun onClosed(eventSource: EventSource) {
+                completedNormally.set(true)
                 close()
             }
         }
@@ -413,10 +421,11 @@ class ChatCompletionsAPI(
 
     private fun buildMessages(messages: List<UIMessage>) = buildJsonArray {
         val filteredMessages = messages.filter { it.isValidToUpload() }
+        val lastUserIndex = filteredMessages.indexOfLast { it.role == MessageRole.USER }
 
-        filteredMessages.forEach { message ->
+        filteredMessages.forEachIndexed { index, message ->
             if (message.role == MessageRole.ASSISTANT) {
-                addAssistantMessages(message, includeReasoning = true)
+                addAssistantMessages(message, includeReasoning = index > lastUserIndex)
             } else {
                 addNonAssistantMessage(message)
             }
@@ -702,4 +711,8 @@ class ChatCompletionsAPI(
         val texts = filter { it is UIMessagePart.Text }.size
         return gonnaSend == texts && texts == 1
     }
+}
+
+internal fun shouldIgnoreStreamFailure(t: Throwable?, completedNormally: Boolean): Boolean {
+    return completedNormally && t is IOException && t.message == "canceled"
 }

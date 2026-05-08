@@ -437,6 +437,8 @@
   <string name="permission_desc_require_permission">더 나은 사용자 경험을 제공하기 위해 앱에서 다음 권한이 필요합니다:</string>
   <string name="permission_diaog_title">권한 요청</string>
   <string name="permission_go_to_settings">앱 설정으로 이동</string>
+  <string name="permission_local_network">로컬 네트워크</string>
+  <string name="permission_local_network_desc">같은 로컬 네트워크의 기기에서 Web 서버에 접근할 수 있도록 허용합니다</string>
   <string name="permission_notification">알림</string>
   <string name="permission_notification_desc">알림 보내기</string>
   <string name="permission_permanently_denied">영구적으로 거부됨</string>
@@ -497,7 +499,7 @@
   <string name="prompt_page_priority_format">우선순위: %d</string>
   <string name="prompt_page_priority_label">우선순위</string>
   <string name="prompt_page_role_assistant">어시스턴트 (미리 채우기)</string>
-  <string name="prompt_page_role_user">사용자 (시스템 태그로 래핑됨)</string>
+  <string name="prompt_page_role_user">사용자</string>
   <string name="prompt_page_scan_depth">스캔 깊이(메시지)</string>
   <string name="prompt_page_title">프롬프트 인젝션</string>
   <string name="prompt_page_unnamed">이름 없음</string>
@@ -978,5 +980,8 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="reasoning_picker_hint">모든 모델이 깊이 조정을 지원하는 것은 아닙니다. 모델 및 제공자 문서를 참조하세요.</string>
   <string name="setting_page_built_in_tools_image_generation">이미지 생성</string>
   <string name="setting_page_built_in_tools_image_generation_desc">이미지 생성 기능 활성화</string>
+  <string name="setting_provider_page_claude_prompt_cache_ttl_1h">1시간</string>
+  <string name="setting_provider_page_claude_prompt_cache_ttl_5m">5분</string>
+  <string name="setting_provider_page_claude_prompt_cache_ttl">프롬프트 캐시 TTL</string>
 </resources>
 
